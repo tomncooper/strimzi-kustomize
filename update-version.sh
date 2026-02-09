@@ -1,18 +1,15 @@
 #!/usr/bin/env bash
 #
-# Update Strimzi version across all kustomization files
+# Update component versions across kustomization files
 #
-# Usage: ./update-strimzi-version.sh <new-version>
-# Example: ./update-strimzi-version.sh 0.50.0
+# Usage: ./update-version.sh <component> <new-version>
+# Example: ./update-version.sh strimzi 0.50.0
+#          ./update-version.sh apicurio-registry 3.1.8
 #
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Files that contain Strimzi version references
-CLUSTER_OPERATOR_KUSTOMIZATION="${SCRIPT_DIR}/cluster-operator/base/kustomization.yaml"
-KAFKA_SINGLE_NODE_KUSTOMIZATION="${SCRIPT_DIR}/kafka/single-node/kustomization.yaml"
 
 # Color output helpers
 RED='\033[0;31m'
@@ -32,35 +29,88 @@ error() {
     echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
+# Component configuration
+COMPONENT=""
+COMPONENT_LABEL=""
+GITHUB_REPO=""
+VERSION_REGEX=""
+COMPONENT_FILES=()
+
+setup_strimzi() {
+    COMPONENT="strimzi"
+    COMPONENT_LABEL="Strimzi"
+    GITHUB_REPO="strimzi/strimzi-kafka-operator"
+    VERSION_REGEX='releases/download/\K[0-9]+\.[0-9]+\.[0-9]+'
+    COMPONENT_FILES=(
+        "${SCRIPT_DIR}/cluster-operator/base/kustomization.yaml"
+        "${SCRIPT_DIR}/kafka/single-node/kustomization.yaml"
+    )
+}
+
+setup_apicurio_registry() {
+    COMPONENT="apicurio-registry"
+    COMPONENT_LABEL="Apicurio Registry"
+    GITHUB_REPO="Apicurio/apicurio-registry"
+    VERSION_REGEX='Apicurio/apicurio-registry/\K[0-9]+\.[0-9]+\.[0-9]+'
+    COMPONENT_FILES=(
+        "${SCRIPT_DIR}/apicurio-registry/operator/base/kustomization.yaml"
+    )
+}
+
 usage() {
     cat <<EOF
-Usage: $(basename "$0") [OPTIONS] <new-version>
+Usage: $(basename "$0") [OPTIONS] <component> <new-version>
 
-Update Strimzi version in all kustomization files.
+Update component versions in kustomization files.
+
+Components:
+  strimzi              Strimzi Kafka Operator
+  apicurio-registry    Apicurio Registry Operator
 
 Arguments:
-  new-version    The Strimzi version to update to (e.g., 0.50.0)
+  component      The component to update (strimzi or apicurio-registry)
+  new-version    The version to update to (e.g., 0.50.0 or 3.1.8)
 
 Options:
   -c, --check        Only check if the release exists on GitHub (no changes made)
   -d, --dry-run      Show what would be changed without making changes
-  -l, --list [N|all] List available Strimzi versions (default: 20, or 'all')
+  -l, --list [N|all] List available versions (default: 20, or 'all')
   -h, --help         Show this help message
 
 Examples:
-  $(basename "$0") --list           # List latest 20 versions
-  $(basename "$0") --list 10        # List latest 10 versions
-  $(basename "$0") --list all       # List all versions
-  $(basename "$0") 0.50.0           # Update to version
-  $(basename "$0") --check 0.50.0   # Verify release exists (no changes)
-  $(basename "$0") --dry-run 0.50.0 # Preview changes
+  $(basename "$0") --list strimzi              # List latest 20 Strimzi versions
+  $(basename "$0") --list apicurio-registry    # List latest 20 Apicurio Registry versions
+  $(basename "$0") --list 10 strimzi           # List latest 10 Strimzi versions
+  $(basename "$0") --list all strimzi          # List all Strimzi versions
+  $(basename "$0") strimzi 0.50.0              # Update Strimzi to version
+  $(basename "$0") apicurio-registry 3.1.8     # Update Apicurio Registry to version
+  $(basename "$0") --check strimzi 0.50.0      # Verify release exists (no changes)
+  $(basename "$0") --dry-run strimzi 0.50.0    # Preview changes
 EOF
     exit 0
 }
 
-# Get current version from cluster-operator kustomization
+# Set up component configuration based on name
+setup_component() {
+    local component="$1"
+    case "$component" in
+        strimzi)
+            setup_strimzi
+            ;;
+        apicurio-registry)
+            setup_apicurio_registry
+            ;;
+        *)
+            error "Unknown component: ${component}"
+            error "Valid components: strimzi, apicurio-registry"
+            exit 1
+            ;;
+    esac
+}
+
+# Get current version from the first component file
 get_current_version() {
-    grep -oP 'releases/download/\K[0-9]+\.[0-9]+\.[0-9]+' "$CLUSTER_OPERATOR_KUSTOMIZATION" | head -1
+    grep -oP "$VERSION_REGEX" "${COMPONENT_FILES[0]}" | head -1
 }
 
 # List available releases from GitHub
@@ -74,7 +124,7 @@ list_releases() {
         per_page=100  # GitHub API max per page
     fi
 
-    info "Fetching available Strimzi releases from GitHub..."
+    info "Fetching available ${COMPONENT_LABEL} releases from GitHub..."
     echo ""
 
     if ! command -v curl &> /dev/null; then
@@ -89,7 +139,7 @@ list_releases() {
         local page=1
         while true; do
             local page_releases
-            page_releases=$(curl -s "https://api.github.com/repos/strimzi/strimzi-kafka-operator/releases?per_page=100&page=${page}" \
+            page_releases=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=100&page=${page}" \
                 | grep '"tag_name":' \
                 | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' || true)
 
@@ -110,7 +160,7 @@ list_releases() {
             fi
         done
     else
-        releases=$(curl -s "https://api.github.com/repos/strimzi/strimzi-kafka-operator/releases?per_page=${per_page}" \
+        releases=$(curl -s "https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=${per_page}" \
             | grep '"tag_name":' \
             | sed -E 's/.*"tag_name": "([^"]+)".*/\1/' \
             | head -n "$limit")
@@ -128,9 +178,9 @@ list_releases() {
     count=$(echo "$releases" | wc -l | tr -d ' ')
 
     if [[ "$is_all" == "true" ]]; then
-        echo "Available versions (all ${count}):"
+        echo "Available ${COMPONENT_LABEL} versions (all ${count}):"
     else
-        echo "Available versions (latest ${limit}):"
+        echo "Available ${COMPONENT_LABEL} versions (latest ${limit}):"
     fi
     echo ""
     while IFS= read -r version; do
@@ -141,15 +191,15 @@ list_releases() {
         fi
     done <<< "$releases"
     echo ""
-    info "View all releases: https://github.com/strimzi/strimzi-kafka-operator/releases"
+    info "View all releases: https://github.com/${GITHUB_REPO}/releases"
 }
 
 # Check if release exists on GitHub
 check_release_exists() {
     local version="$1"
-    local release_url="https://github.com/strimzi/strimzi-kafka-operator/releases/tag/${version}"
+    local release_url="https://github.com/${GITHUB_REPO}/releases/tag/${version}"
 
-    info "Checking if release ${version} exists..."
+    info "Checking if ${COMPONENT_LABEL} release ${version} exists..."
 
     if command -v curl &> /dev/null; then
         local http_code
@@ -159,7 +209,7 @@ check_release_exists() {
             return 0
         else
             error "Release ${version} not found on GitHub (HTTP ${http_code})"
-            error "Check available releases at: https://github.com/strimzi/strimzi-kafka-operator/releases"
+            error "Check available releases at: https://github.com/${GITHUB_REPO}/releases"
             return 1
         fi
     else
@@ -214,6 +264,7 @@ main() {
     local list_releases_flag=false
     local list_limit="20"
     local new_version=""
+    local component_arg=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -243,16 +294,27 @@ main() {
                 usage
                 ;;
             *)
-                if [[ -z "$new_version" ]]; then
+                if [[ -z "$component_arg" ]]; then
+                    component_arg="$1"
+                elif [[ -z "$new_version" ]]; then
                     new_version="$1"
                 else
-                    error "Multiple versions specified"
+                    error "Too many arguments"
                     usage
                 fi
                 shift
                 ;;
         esac
     done
+
+    # Validate component provided
+    if [[ -z "$component_arg" ]]; then
+        error "No component specified"
+        usage
+    fi
+
+    # Set up component configuration
+    setup_component "$component_arg"
 
     # Handle --list flag
     if [[ "$list_releases_flag" == "true" ]]; then
@@ -278,12 +340,12 @@ main() {
     current_version=$(get_current_version)
 
     if [[ -z "$current_version" ]]; then
-        error "Could not determine current Strimzi version"
+        error "Could not determine current ${COMPONENT_LABEL} version"
         exit 1
     fi
 
-    info "Current Strimzi version: ${current_version}"
-    info "Target Strimzi version: ${new_version}"
+    info "Current ${COMPONENT_LABEL} version: ${current_version}"
+    info "Target ${COMPONENT_LABEL} version: ${new_version}"
 
     if [[ "$current_version" == "$new_version" ]]; then
         warn "Already at version ${new_version}"
@@ -304,13 +366,11 @@ main() {
     # Update files
     local files_updated=0
 
-    if update_file "$CLUSTER_OPERATOR_KUSTOMIZATION" "$current_version" "$new_version" "$dry_run"; then
-        ((files_updated++)) || true
-    fi
-
-    if update_file "$KAFKA_SINGLE_NODE_KUSTOMIZATION" "$current_version" "$new_version" "$dry_run"; then
-        ((files_updated++)) || true
-    fi
+    for file in "${COMPONENT_FILES[@]}"; do
+        if update_file "$file" "$current_version" "$new_version" "$dry_run"; then
+            ((files_updated++)) || true
+        fi
+    done
 
     echo ""
 
@@ -321,8 +381,8 @@ main() {
         echo ""
         info "Next steps:"
         echo "  1. Review the changes: git diff"
-        echo "  2. Test the deployment: kubectl apply -k cluster-operator/all-namespaces/ --dry-run=client"
-        echo "  3. Commit the changes: git add -A && git commit -m 'Update Strimzi to ${new_version}'"
+        echo "  2. Test the deployment: kubectl apply -k <overlay-dir> --dry-run=client"
+        echo "  3. Commit the changes: git add -A && git commit -m 'Update ${COMPONENT_LABEL} to ${new_version}'"
     fi
 }
 

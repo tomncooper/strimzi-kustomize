@@ -1,0 +1,43 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: apicurio-registry
+
+resources:
+  - https://raw.githubusercontent.com/Apicurio/apicurio-registry/3.1.7/operator/install/install.yaml
+  - namespace.yaml
+
+patches:
+  # Replace PLACEHOLDER_NAMESPACE in ClusterRoleBinding subject
+  - target:
+      kind: ClusterRoleBinding
+    patch: |-
+      - op: replace
+        path: /subjects/0/namespace
+        value: apicurio-registry
+  # Rename Deployment to strip version from name
+  - target:
+      kind: Deployment
+      labelSelector: app.kubernetes.io/name=apicurio-registry-operator
+    patch: |-
+      - op: replace
+        path: /metadata/name
+        value: apicurio-registry-operator
+  # Fix APICURIO_OPERATOR_WATCHED_NAMESPACES env var (replace OLM valueFrom with direct value)
+  - target:
+      kind: Deployment
+      name: apicurio-registry-operator
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: apicurio-registry-operator
+      spec:
+        template:
+          spec:
+            containers:
+              - name: apicurio-registry-operator
+                env:
+                  - name: APICURIO_OPERATOR_WATCHED_NAMESPACES
+                    value: apicurio-registry
+                    valueFrom: null
