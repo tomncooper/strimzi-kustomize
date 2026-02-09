@@ -12,7 +12,7 @@ This repository provides two deployment configurations:
 In both configurations, the operator is deployed in the `strimzi` namespace. 
 If you wish to deploy it in a different namespace, adjust the `namespace` field in the respective Kustomize overlays and the RoleBindings and ClusterRoleBindings overrides in the base kustomization.yaml.
 
-## Installation
+## Operator Installation
 
 ### Prerequisites
 
@@ -20,6 +20,16 @@ If you wish to deploy it in a different namespace, adjust the `namespace` field 
 - kustomize installed (or use `kubectl` with built-in kustomize support)
 
 ### Deploy All-Namespaces Mode
+
+#### Using the remote repository
+
+You can apply the configuration directly from the GitHub repository:
+
+```bash
+kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//cluster-operator/all-namespaces?ref=main'
+```
+
+#### Using the local repository
 
 This configuration allows the operator to manage Kafka clusters in any namespace.
 
@@ -35,6 +45,16 @@ kustomize build cluster-operator/all-namespaces/ | kubectl apply -f -
 
 ### Deploy Single-Namespace Mode
 
+#### Using the remote repository
+
+You can apply the configuration directly from the GitHub repository:
+
+```bash
+kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//cluster-operator/single-namespace?ref=main'
+```
+
+#### Using the local repository
+
 This configuration restricts the operator to only manage Kafka clusters in the `strimzi` namespace.
 
 ```bash
@@ -47,7 +67,7 @@ Or using kustomize directly:
 kustomize build cluster-operator/single-namespace/ | kubectl apply -f -
 ```
 
-### Verify
+### Verify the Operator Deployment
 
 Check that the operator is running:
 
@@ -59,6 +79,16 @@ kubectl get pods -n strimzi
 ## Deploying Kafka Clusters
 
 ### Single-Node Kafka Cluster
+
+#### Using the remote repository
+
+You can apply the configuration directly from the GitHub repository:
+
+```bash
+kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//kafka/single-node?ref=main'
+```
+
+#### Using the local repository
 
 Deploy a simple single-node Kafka cluster for testing:
 
@@ -72,7 +102,9 @@ Or using kustomize directly:
 kustomize build kafka/single-node/ | kubectl apply -f -
 ```
 
-This will create a Kafka cluster named `test-cluster` in the `kafka` namespace.
+#### Verify the Kafka Cluster
+
+The above commands will create a Kafka cluster named `test-cluster` in the `kafka` namespace.
 You can modify the `kafka/single-node/kustomization.yaml` to change the cluster name or namespace as needed.
 
 Verify the deployment:
