@@ -82,3 +82,13 @@ kubectl get kafka -n kafka
 kubectl get kafkanodepool -n kafka
 kubectl get pods -n kafka
 ```
+
+## Updating the Strimzi Version
+
+To update the Strimzi version used in the operator deployment, run the update script:
+
+```bash
+./update-strimzi-version.sh <new-version>
+```
+
+See the `--help` text for more options, such as listing available versions or performing a dry-run.
