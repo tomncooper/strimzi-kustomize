@@ -4,8 +4,8 @@ This repository contains Kustomize configurations for deploying the Strimzi Kafk
 
 ## Table of Contents
 
-- [Deployment Modes](#deployment-modes)
 - [Prerequisites](#prerequisites)
+- [Dev Environment (Full Development Stack)](#dev-environment-full-development-stack)
 - [Strimzi Operator Installation](#strimzi-operator-installation)
   - [Deploy All-Namespaces Mode](#deploy-all-namespaces-mode)
   - [Deploy Single-Namespace Mode](#deploy-single-namespace-mode)
@@ -20,20 +20,72 @@ This repository contains Kustomize configurations for deploying the Strimzi Kafk
     - [Verify the Registry Instance](#verify-the-registry-instance)
 - [Updating Versions](#updating-versions)
 
-## Deployment Modes
-
-This repository provides two deployment configurations for each operator:
-
-- **all-namespaces**: Operator watches all namespaces for resources
-- **single-namespace**: Operator watches only the namespace it's deployed in
-
-The Strimzi operator is deployed in the `strimzi` namespace and the Apicurio Registry operator in the `apicurio-registry` namespace.
-If you wish to deploy in different namespaces, adjust the `namespace` field in the respective Kustomize overlays and the ClusterRoleBinding overrides in the base kustomization.yaml.
-
 ## Prerequisites
 
 - kubectl installed and configured
 - kustomize installed (or use `kubectl` with built-in kustomize support)
+
+## Dev Environment (Full Development Stack)
+
+The `dev/` directory contains Kustomize configurations for deploying the complete development environment, including:
+
+- **Strimzi operator** (all-namespaces mode) in the `strimzi` namespace
+- **Single-node Kafka cluster** (`test-cluster`) in the `kafka` namespace
+- **Apicurio Registry operator** (single-namespace mode) in the `apicurio-registry` namespace
+- **Apicurio Registry instance** (in-memory storage) in the `apicurio-registry` namespace
+
+The configuration is split into two layers:
+
+- **`dev/base/`** — Installs only the operators (Strimzi and Apicurio Registry)
+- **`dev/stack/`** — Includes the base operators plus the operands (Kafka cluster and registry instance)
+
+### Quick install
+
+Run the full two-step deployment with a single command:
+
+```bash
+curl -sL https://raw.githubusercontent.com/tomncooper/strimzi-kustomize/main/dev/install.sh | bash
+```
+
+### Manual Two-step deployment
+
+Operator CRDs must be registered before their custom resources (Kafka, KafkaNodePool, ApicurioRegistry3) can be created. The two-step approach installs operators first, waits for them to be ready, then deploys the operands.
+
+#### Using the remote repository
+
+```bash
+# Step 1: Install operators
+kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//dev/base?ref=main'
+
+# Step 2: Wait for operators to be ready
+kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
+kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
+
+# Step 3: Install operands
+kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//dev/stack?ref=main'
+```
+
+#### Using the local repository
+
+```bash
+# Step 1: Install operators
+kubectl apply -k dev/base/
+
+# Step 2: Wait for operators to be ready
+kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
+kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
+
+# Step 3: Install operands
+kubectl apply -k dev/stack/
+```
+
+### Single-step deployment
+
+You can still deploy everything at once using `dev/stack/`, but you may need to apply twice — once to install the operators, and again after the operators have registered their CRDs to create the custom resources.
+
+```bash
+kubectl apply -k dev/stack/
+```
 
 ## Strimzi Operator Installation
 
