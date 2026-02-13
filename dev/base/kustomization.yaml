@@ -4,3 +4,4 @@ kind: Kustomization
 resources:
   - ../../cluster-operator/all-namespaces
   - ../../apicurio-registry/operator/single-namespace
+  - ../../streamshub-console-operator

@@ -55,11 +55,17 @@ check_prerequisites() {
         exit 1
     fi
     info "kubectl found: $(kubectl version --client --short 2>/dev/null || kubectl version --client 2>/dev/null | head -1)"
+
+    # StreamsHub Console requires an Ingress controller
+    if ! kubectl get ingressclass &> /dev/null || [ -z "$(kubectl get ingressclass -o name 2>/dev/null)" ]; then
+        warn "No IngressClass found in the cluster"
+        warn "StreamsHub Console requires an Ingress controller (e.g. 'minikube addons enable ingress')"
+    fi
 }
 
 main() {
     echo ""
-    info "Installing Strimzi + Apicurio Registry dev stack"
+    info "Installing Strimzi + Apicurio Registry + StreamsHub Console dev stack"
     info "Repo: ${REPO} | Ref: ${REF} | Timeout: ${TIMEOUT}"
     echo ""
 
@@ -70,29 +76,36 @@ main() {
     # --- Step 1: Install operators (dev/base) ---
     local base_url
     base_url=$(kustomize_url "dev/base")
-    info "Step 1/4: Installing operators..."
+    info "Step 1/5: Installing operators..."
     info "Applying: ${base_url}"
     kubectl apply -k "${base_url}"
     echo ""
 
     # --- Step 2: Wait for Strimzi operator ---
-    info "Step 2/4: Waiting for strimzi-cluster-operator to be ready (timeout: ${TIMEOUT})..."
+    info "Step 2/5: Waiting for strimzi-cluster-operator to be ready (timeout: ${TIMEOUT})..."
     kubectl wait --for=condition=Available deployment/strimzi-cluster-operator \
         -n strimzi --timeout="${TIMEOUT}"
     info "Strimzi operator is ready"
     echo ""
 
     # --- Step 3: Wait for Apicurio Registry operator ---
-    info "Step 3/4: Waiting for apicurio-registry-operator to be ready (timeout: ${TIMEOUT})..."
+    info "Step 3/5: Waiting for apicurio-registry-operator to be ready (timeout: ${TIMEOUT})..."
     kubectl wait --for=condition=Available deployment/apicurio-registry-operator \
         -n apicurio-registry --timeout="${TIMEOUT}"
     info "Apicurio Registry operator is ready"
     echo ""
 
-    # --- Step 4: Install operands (dev/stack) ---
+    # --- Step 4: Wait for StreamsHub Console operator ---
+    info "Step 4/5: Waiting for console-operator to be ready (timeout: ${TIMEOUT})..."
+    kubectl wait --for=condition=Available deployment/console-operator \
+        -n streamshub-console --timeout="${TIMEOUT}"
+    info "StreamsHub Console operator is ready"
+    echo ""
+
+    # --- Step 5: Install operands (dev/stack) ---
     local stack_url
     stack_url=$(kustomize_url "dev/stack")
-    info "Step 4/4: Installing operands (Kafka cluster, Registry instance)..."
+    info "Step 5/5: Installing operands (Kafka cluster, Registry instance, Console)..."
     info "Applying: ${stack_url}"
     kubectl apply -k "${stack_url}"
     echo ""
@@ -101,16 +114,20 @@ main() {
     info "Dev stack installation complete!"
     echo ""
     echo "Deployed components:"
-    echo "  - Strimzi operator          (namespace: strimzi)"
-    echo "  - Kafka cluster             (namespace: kafka, name: test-cluster)"
+    echo "  - Strimzi operator           (namespace: strimzi)"
+    echo "  - Kafka cluster              (namespace: kafka, name: test-cluster)"
     echo "  - Apicurio Registry operator (namespace: apicurio-registry)"
     echo "  - Apicurio Registry instance (namespace: apicurio-registry, storage: in-memory)"
+    echo "  - StreamsHub Console operator (namespace: streamshub-console)"
+    echo "  - StreamsHub Console instance (namespace: streamshub-console)"
     echo ""
     echo "Verify with:"
     echo "  kubectl get deployment -n strimzi strimzi-cluster-operator"
     echo "  kubectl get kafka -n kafka"
     echo "  kubectl get deployment -n apicurio-registry apicurio-registry-operator"
     echo "  kubectl get apicurioregistry3 -n apicurio-registry"
+    echo "  kubectl get deployment -n streamshub-console console-operator"
+    echo "  kubectl get console -n streamshub-console"
 }
 
 main

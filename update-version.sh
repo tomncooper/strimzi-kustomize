@@ -57,6 +57,16 @@ setup_apicurio_registry() {
     )
 }
 
+setup_streamshub_console() {
+    COMPONENT="streamshub-console"
+    COMPONENT_LABEL="StreamsHub Console"
+    GITHUB_REPO="streamshub/console"
+    VERSION_REGEX='releases/download/\K[0-9]+\.[0-9]+\.[0-9]+'
+    COMPONENT_FILES=(
+        "${SCRIPT_DIR}/streamshub-console-operator/kustomization.yaml"
+    )
+}
+
 usage() {
     cat <<EOF
 Usage: $(basename "$0") [OPTIONS] <component> <new-version>
@@ -66,9 +76,10 @@ Update component versions in kustomization files.
 Components:
   strimzi              Strimzi Kafka Operator
   apicurio-registry    Apicurio Registry Operator
+  streamshub-console   StreamsHub Console Operator
 
 Arguments:
-  component      The component to update (strimzi or apicurio-registry)
+  component      The component to update (strimzi, apicurio-registry, or streamshub-console)
   new-version    The version to update to (e.g., 0.50.0 or 3.1.8)
 
 Options:
@@ -84,6 +95,7 @@ Examples:
   $(basename "$0") --list all strimzi          # List all Strimzi versions
   $(basename "$0") strimzi 0.50.0              # Update Strimzi to version
   $(basename "$0") apicurio-registry 3.1.8     # Update Apicurio Registry to version
+  $(basename "$0") streamshub-console 0.11.0    # Update StreamsHub Console to version
   $(basename "$0") --check strimzi 0.50.0      # Verify release exists (no changes)
   $(basename "$0") --dry-run strimzi 0.50.0    # Preview changes
 EOF
@@ -100,9 +112,12 @@ setup_component() {
         apicurio-registry)
             setup_apicurio_registry
             ;;
+        streamshub-console)
+            setup_streamshub_console
+            ;;
         *)
             error "Unknown component: ${component}"
-            error "Valid components: strimzi, apicurio-registry"
+            error "Valid components: strimzi, apicurio-registry, streamshub-console"
             exit 1
             ;;
     esac

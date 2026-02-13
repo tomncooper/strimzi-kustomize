@@ -18,6 +18,10 @@ This repository contains Kustomize configurations for deploying the Strimzi Kafk
     - [In-Memory Storage](#in-memory-storage)
     - [KafkaSQL Storage](#kafkasql-storage)
     - [Verify the Registry Instance](#verify-the-registry-instance)
+- [StreamsHub Console](#streamshub-console)
+  - [Operator Installation](#streamshub-console-operator-installation)
+  - [Deploying a Console Instance](#deploying-a-console-instance)
+  - [Accessing the Console](#accessing-the-console)
 - [Updating Versions](#updating-versions)
 
 ## Prerequisites
@@ -33,6 +37,8 @@ The `dev/` directory contains Kustomize configurations for deploying the complet
 - **Single-node Kafka cluster** (`test-cluster`) in the `kafka` namespace
 - **Apicurio Registry operator** (single-namespace mode) in the `apicurio-registry` namespace
 - **Apicurio Registry instance** (in-memory storage) in the `apicurio-registry` namespace
+- **StreamsHub Console operator** in the `streamshub-console` namespace
+- **StreamsHub Console instance** connected to `test-cluster` in the `streamshub-console` namespace
 
 The configuration is split into two layers:
 
@@ -49,7 +55,8 @@ curl -sL https://raw.githubusercontent.com/tomncooper/strimzi-kustomize/main/dev
 
 ### Manual Two-step deployment
 
-Operator CRDs must be registered before their custom resources (Kafka, KafkaNodePool, ApicurioRegistry3) can be created. The two-step approach installs operators first, waits for them to be ready, then deploys the operands.
+Operator CRDs must be registered before their custom resources (KafkaNodePool, Kafka, ApicurioRegistry3, Console etc.) can be created. 
+The two-step approach installs operators first, waits for them to be ready, then deploys the operands.
 
 #### Using the remote repository
 
@@ -304,6 +311,56 @@ kubectl port-forward -n apicurio-registry svc/apicurio-registry-app-service 8080
 ```
 
 Then open http://localhost:8080 in your browser.
+
+## StreamsHub Console
+
+[StreamsHub Console](https://github.com/streamshub/console) provides a web-based UI for monitoring and managing Kafka clusters.
+
+### StreamsHub Console Operator Installation
+
+#### Using the local repository
+
+```bash
+kubectl apply -k streamshub-console-operator/
+```
+
+### Deploying a Console Instance
+
+The console instance is configured to connect to the `test-cluster` Kafka cluster deployed via the `kafka/single-node/` configuration.
+
+#### Using the local repository
+
+```bash
+kubectl apply -k streamshub-console/
+```
+
+#### Verify the Console
+
+```bash
+kubectl get console -n streamshub-console
+kubectl get pods -n streamshub-console
+```
+
+### Accessing the Console
+
+The console creates an Ingress resource with the hostname configured in the Console CR (default: `console.streamshub.local`).
+
+#### Minikube
+
+When using minikube, enable the ingress addon and run `minikube tunnel`:
+
+```bash
+minikube addons enable ingress
+minikube tunnel
+```
+
+Then use port-forwarding to access the console:
+
+```bash
+kubectl port-forward -n streamshub-console svc/streamshub-console-console-service 8080:80
+```
+
+Open http://localhost:8080 in your browser.
 
 ## Updating Versions
 
