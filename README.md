@@ -42,8 +42,8 @@ The `dev/` directory contains Kustomize configurations for deploying the complet
 
 The configuration is split into two layers:
 
-- **`dev/base/`** — Installs only the operators (Strimzi and Apicurio Registry)
-- **`dev/stack/`** — Includes the base operators plus the operands (Kafka cluster and registry instance)
+- **`dev/base/`** — Installs only the operators (Strimzi, Apicurio Registry and StreamsHub Console)
+- **`dev/stack/`** — Includes the base operators plus the operands (Kafka cluster, Apicurio Registry and StreamsHub Console instance)
 
 ### Quick install
 
@@ -67,6 +67,7 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//dev/base?ref=
 # Step 2: Wait for operators to be ready
 kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
 kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
+kubectl wait --for=condition=Available deployment/streamshub-console-operator -n streamshub-console --timeout=120s
 
 # Step 3: Install operands
 kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//dev/stack?ref=main'
@@ -81,16 +82,9 @@ kubectl apply -k dev/base/
 # Step 2: Wait for operators to be ready
 kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
 kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
+kubectl wait --for=condition=Available deployment/streamshub-console-operator -n streamshub-console --timeout=120s
 
 # Step 3: Install operands
-kubectl apply -k dev/stack/
-```
-
-### Single-step deployment
-
-You can still deploy everything at once using `dev/stack/`, but you may need to apply twice — once to install the operators, and again after the operators have registered their CRDs to create the custom resources.
-
-```bash
 kubectl apply -k dev/stack/
 ```
 
