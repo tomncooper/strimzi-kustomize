@@ -64,7 +64,7 @@ The two-step approach installs operators first, waits for them to be ready, then
 # Step 1: Install operators
 kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//dev/base?ref=main'
 
-# Step 2: Wait for operators to be ready
+# (Optional) Step 2: Wait for operators to be ready
 kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
 kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
 kubectl wait --for=condition=Available deployment/streamshub-console-operator -n streamshub-console --timeout=120s
@@ -75,11 +75,13 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//dev/stack?ref
 
 #### Using the local repository
 
+If you checkout the repository, you can use the local files:
+
 ```bash
 # Step 1: Install operators
 kubectl apply -k dev/base/
 
-# Step 2: Wait for operators to be ready
+# (Optional) Step 2: Wait for operators to be ready
 kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi --timeout=120s
 kubectl wait --for=condition=Available deployment/apicurio-registry-operator -n apicurio-registry --timeout=120s
 kubectl wait --for=condition=Available deployment/streamshub-console-operator -n streamshub-console --timeout=120s
@@ -92,6 +94,8 @@ kubectl apply -k dev/stack/
 
 ### Deploy All-Namespaces Mode
 
+This configuration allows the operator to manage Kafka clusters in any namespace.
+
 #### Using the remote repository
 
 You can apply the configuration directly from the GitHub repository:
@@ -102,19 +106,13 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//cluster-opera
 
 #### Using the local repository
 
-This configuration allows the operator to manage Kafka clusters in any namespace.
-
 ```bash
 kubectl apply -k cluster-operator/all-namespaces/
 ```
 
-Or using kustomize directly:
-
-```bash
-kustomize build cluster-operator/all-namespaces/ | kubectl apply -f -
-```
-
 ### Deploy Single-Namespace Mode
+
+This configuration restricts the operator to only manage Kafka clusters in the `strimzi` namespace.
 
 #### Using the remote repository
 
@@ -126,30 +124,15 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//cluster-opera
 
 #### Using the local repository
 
-This configuration restricts the operator to only manage Kafka clusters in the `strimzi` namespace.
-
 ```bash
 kubectl apply -k cluster-operator/single-namespace/
-```
-
-Or using kustomize directly:
-
-```bash
-kustomize build cluster-operator/single-namespace/ | kubectl apply -f -
-```
-
-### Verify the Strimzi Operator Deployment
-
-Check that the operator is running:
-
-```bash
-kubectl get deployment -n strimzi strimzi-cluster-operator
-kubectl get pods -n strimzi
 ```
 
 ## Deploying Kafka Clusters
 
 ### Single-Node Kafka Cluster
+
+Deploy a simple single-node Kafka cluster for testing:
 
 #### Using the remote repository
 
@@ -158,32 +141,10 @@ You can apply the configuration directly from the GitHub repository:
 ```bash
 kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//kafka/single-node?ref=main'
 ```
-
 #### Using the local repository
-
-Deploy a simple single-node Kafka cluster for testing:
 
 ```bash
 kubectl apply -k kafka/single-node/
-```
-
-Or using kustomize directly:
-
-```bash
-kustomize build kafka/single-node/ | kubectl apply -f -
-```
-
-#### Verify the Kafka Cluster
-
-The above commands will create a Kafka cluster named `test-cluster` in the `kafka` namespace.
-You can modify the `kafka/single-node/kustomization.yaml` to change the cluster name or namespace as needed.
-
-Verify the deployment:
-
-```bash
-kubectl get kafka -n kafka
-kubectl get kafkanodepool -n kafka
-kubectl get pods -n kafka
 ```
 
 ## Apicurio Registry
@@ -194,6 +155,8 @@ kubectl get pods -n kafka
 
 #### Deploy All-Namespaces Mode
 
+This configuration allows the operator to manage Apicurio Registry instances in any namespace.
+
 ##### Using the remote repository
 
 ```bash
@@ -202,19 +165,13 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//apicurio-regi
 
 ##### Using the local repository
 
-This configuration allows the operator to manage Apicurio Registry instances in any namespace.
-
 ```bash
 kubectl apply -k apicurio-registry/operator/all-namespaces/
 ```
 
-Or using kustomize directly:
-
-```bash
-kustomize build apicurio-registry/operator/all-namespaces/ | kubectl apply -f -
-```
-
 #### Deploy Single-Namespace Mode
+
+This configuration restricts the operator to only manage registry instances in the `apicurio-registry` namespace.
 
 ##### Using the remote repository
 
@@ -224,25 +181,8 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//apicurio-regi
 
 ##### Using the local repository
 
-This configuration restricts the operator to only manage registry instances in the `apicurio-registry` namespace.
-
 ```bash
 kubectl apply -k apicurio-registry/operator/single-namespace/
-```
-
-Or using kustomize directly:
-
-```bash
-kustomize build apicurio-registry/operator/single-namespace/ | kubectl apply -f -
-```
-
-#### Verify the Apicurio Registry Operator
-
-Check that the operator is running:
-
-```bash
-kubectl get deployment -n apicurio-registry apicurio-registry-operator
-kubectl get pods -n apicurio-registry
 ```
 
 ### Deploying a Registry Instance
@@ -263,12 +203,6 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//apicurio-regi
 kubectl apply -k apicurio-registry/registry/in-memory/
 ```
 
-Or using kustomize directly:
-
-```bash
-kustomize build apicurio-registry/registry/in-memory/ | kubectl apply -f -
-```
-
 #### KafkaSQL Storage
 
 This deploys an Apicurio Registry instance using KafkaSQL storage, connecting to the `test-cluster` Kafka cluster deployed via the `kafka/single-node/` configuration.
@@ -284,27 +218,6 @@ kubectl apply -k 'https://github.com/tomncooper/strimzi-kustomize//apicurio-regi
 ```bash
 kubectl apply -k apicurio-registry/registry/kafkasql/
 ```
-
-Or using kustomize directly:
-
-```bash
-kustomize build apicurio-registry/registry/kafkasql/ | kubectl apply -f -
-```
-
-#### Verify the Registry Instance
-
-```bash
-kubectl get apicurioregistry3 -n apicurio-registry
-kubectl get pods -n apicurio-registry
-```
-
-To access the registry UI, use port-forwarding:
-
-```bash
-kubectl port-forward -n apicurio-registry svc/apicurio-registry-app-service 8080:8080
-```
-
-Then open http://localhost:8080 in your browser.
 
 ## StreamsHub Console
 
@@ -326,13 +239,6 @@ The console instance is configured to connect to the `test-cluster` Kafka cluste
 
 ```bash
 kubectl apply -k streamshub-console/
-```
-
-#### Verify the Console
-
-```bash
-kubectl get console -n streamshub-console
-kubectl get pods -n streamshub-console
 ```
 
 ### Accessing the Console
@@ -361,11 +267,8 @@ Open http://localhost:8080 in your browser.
 To update the version of a component, use the update script:
 
 ```bash
-# Strimzi
-./update-version.sh strimzi <new-version>
+./update-version.sh <component> <new-version>
 
-# Apicurio Registry
-./update-version.sh apicurio-registry <new-version>
 ```
 
 List available versions:
@@ -373,6 +276,7 @@ List available versions:
 ```bash
 ./update-version.sh --list strimzi
 ./update-version.sh --list apicurio-registry
+./update-version.sh --list streamshub-console
 ```
 
 See `./update-version.sh --help` for more options, such as performing a dry-run or checking if a release exists.
